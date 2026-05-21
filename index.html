@@ -450,6 +450,7 @@ body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--t1);min-hei
 button:active,.gold-btn:active,.nt:active,.db:active,.opt-btn:active,.end-btn:active,.sbtn:active{
   opacity:0.75;transform:scale(0.97);
 }
+/* ── iOS-safe confirm modal ── */
 /* iOS-safe confirm modal */
 .confirm-modal{position:fixed;inset:0;background:rgba(11,13,19,.92);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;pointer-events:none}
 .confirm-modal.on{display:flex;pointer-events:all}
@@ -724,7 +725,7 @@ button:active,.gold-btn:active,.nt:active,.db:active,.opt-btn:active,.end-btn:ac
 </div>
 
 <script>
-const API='https://api.anthropic.com/v1/messages',MDL='claude-sonnet-4-20250514';
+const API='https://sales-pro-ttt.vercel.app/api/chat',MDL='claude-sonnet-4-20250514';
 const $=id=>document.getElementById(id);
 function load(t){$('ltxt').textContent=t||'...';$('loverlay').classList.add('on')}
 function unload(){$('loverlay').classList.remove('on')}
@@ -732,11 +733,20 @@ function delay(ms){return new Promise(r=>setTimeout(r,ms))}
 function ar(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,100)+'px'}
 
 async function ai(sys,msgs,tok){
-  const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({model:MDL,max_tokens:tok||500,system:sys,messages:msgs})});
-  const d=await r.json();
-  if(!d.content?.[0]?.text)throw new Error('API');
-  return d.content[0].text;
+  for(let attempt=1;attempt<=3;attempt++){
+    try{
+      const r=await fetch(API,{method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({model:MDL,max_tokens:tok||500,system:sys,messages:msgs})});
+      if(!r.ok){if(attempt<3){await delay(attempt*1200);continue;}throw new Error('HTTP '+r.status);}
+      const d=await r.json();
+      if(!d.content?.[0]?.text){if(attempt<3){await delay(attempt*1200);continue;}throw new Error('API');}
+      return d.content[0].text;
+    }catch(e){
+      if(attempt===3)throw e;
+      await delay(attempt*1200);
+    }
+  }
 }
 
 /* ── RANKS ── */
@@ -1262,7 +1272,7 @@ async function iqHandleInput(text){
       const r=await ai(IQ_MOT_SYS,iqMotHist,250);
       iqMotHist.push({role:'assistant',content:r});iqHideTyp();iqAddMsg('bot',r);
       if(r.includes('практическому заданию')||iqMotAnswers.length>=3){await delay(700);startIQRp();return}
-    }catch(e){iqHideTyp();iqAddMsg('bot','⚠️ Ошибка соединения. Попробуй ещё раз.');$('iqInp').disabled=false;}
+    }catch(e){iqHideTyp();iqAddMsg('bot', '⚠️ Нет ответа от сервера. Попробуй ещё раз.');$('iqInp').disabled=false;}
   } else {
     iqRpHist.push({role:'user',content:text});iqRpTurns++;
     iqShowTyp();
@@ -1270,7 +1280,7 @@ async function iqHandleInput(text){
       const r=await ai(iqRpSys(),iqRpHist,200);
       iqRpHist.push({role:'assistant',content:r});iqHideTyp();iqAddMsg('bot','[Клиент] '+r);
       if(r.includes('[ИТОГ:')||iqRpTurns>=6){const w=r.includes('купил]');await delay(700);startIQScore(w);return}
-    }catch(e){iqHideTyp();iqAddMsg('bot','⚠️ Ошибка соединения. Попробуй ещё раз.');$('iqInp').disabled=false;}
+    }catch(e){iqHideTyp();iqAddMsg('bot', '⚠️ Нет ответа от сервера. Попробуй ещё раз.');$('iqInp').disabled=false;}
   }
   $('iqInp').disabled=false;$('iqInp').focus();
 }
@@ -1404,10 +1414,20 @@ async function scSend(){
     scHist.push({role:'assistant',content:r});scHideTyp();scAddMsg('cli',r);
     if(scTurns%2===0)showCoach(text,scHist);
     if(r.includes('[ИТОГ:')){const w=r.includes('купил]');stopTimer();await delay(800);endSC(w,false);return}
-  }catch(e){scHideTyp();scAddMsg('cli','⚠️ Ошибка соединения. Попробуй отправить снова.');}
+  }catch(e){
+    scHideTyp();
+    const errMsg='⚠️ Нет ответа от сервера. <span style="color:var(--acc);cursor:pointer;text-decoration:underline" onclick="scRetry()">Повторить попытку</span>';
+    scAddMsg('cli', errMsg);
+  }
   inp.disabled=false;if(inp)inp.focus();
 }
 function scKey(e){} // Enter no longer sends - use send button
+
+function scRetry(){
+  const inp=$('scInp');if(inp)inp.disabled=false;
+  const lastErr=$('scMsgs').querySelector('.cbub.cli:last-child');
+  if(lastErr&&lastErr.innerHTML.includes('Повторить'))lastErr.closest('.cm').remove();
+}
 
 async function showCoach(msg,hist){
   // Full dialog context so coach knows what was already said
