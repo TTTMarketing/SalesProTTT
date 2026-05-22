@@ -1167,30 +1167,83 @@ function openHistDetail(idx){
   $('mHistTitle').textContent=(h.type==='iq'?'🔍 IQ: ':'⚔️ Тренировка: ')+h.product;
   let body='';
   if(detail){
-    // Scores
+    const sl={opening:'Открытие',questions:'Вопросы',pitch:'Презентация',objections:'Возражения',close:'Закрытие'};
+    const sc2=v=>v>=8?'var(--grn)':v>=6?'var(--amb)':'var(--red)';
+    const sc3=['#f0b429','#4f8ef7','#2ecc71','#f39c12','#9b59b6'];
+
+    // ── Scores ──
     if(detail.stages){
-      const sl={opening:'Открытие',questions:'Вопросы',pitch:'Презентация',objections:'Возражения',close:'Закрытие'};
-      const sc2=v=>v>=8?'var(--grn)':v>=6?'var(--amb)':'var(--red)';
-      body+=`<div class="hd-section"><div class="hd-title">📊 Оценки</div>
-        <div class="hd-scores">${Object.entries(detail.stages).map(([k,v])=>`<div class="hd-sc"><div class="hd-sc-v" style="color:${sc2(v)}">${v}</div><div class="hd-sc-l">${sl[k]||k}</div></div>`).join('')}</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);text-align:center;margin:8px 0">Общий балл: ${h.score}/10</div>
+      body+=`<div class="hd-section">
+        <div class="hd-title">📊 Оценки по критериям</div>
+        <div class="hd-scores">${Object.entries(detail.stages).map(([k,v],i)=>`
+          <div class="hd-sc">
+            <div class="hd-sc-v" style="color:${sc3[i]||sc2(v)}">${v}</div>
+            <div class="hd-sc-l">${sl[k]||k}</div>
+          </div>`).join('')}</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--gold);text-align:center;margin:10px 0">
+          Общий балл: ${h.score}/10
+        </div>
       </div>`;
     }
-    // Dialog
+
+    // ── Verdict + Summary ──
+    if(detail.verdict||detail.summary){
+      const isWin=h.outcome==='Продажа';
+      body+=`<div class="hd-section">
+        <div class="res-verd ${isWin?'win':'lose'}" style="margin:0">
+          <div class="vhd"><span style="font-size:18px">${isWin?'🏆':'📚'}</span>
+          <span class="vtt">${detail.verdict||h.outcome}</span></div>
+          ${detail.summary?`<div style="font-size:13px;line-height:1.6;color:var(--t2);margin-top:6px">${detail.summary}</div>`:''}
+        </div>
+      </div>`;
+    }
+
+    // ── Best / Worst ──
+    if(detail.best_moment||detail.worst_moment){
+      body+=`<div class="hd-section">
+        <div class="mom-grid" style="margin:0">
+          ${detail.best_moment?`<div class="mc best"><div class="mc-lbl">✅ Лучший момент</div><div class="mc-txt">"${detail.best_moment}"</div></div>`:''}
+          ${detail.worst_moment?`<div class="mc worst"><div class="mc-lbl">⚠️ Зона роста</div><div class="mc-txt">${detail.worst_moment}</div></div>`:''}
+        </div>
+      </div>`;
+    }
+
+    // ── Advice ──
+    if(detail.advice&&detail.advice.length){
+      body+=`<div class="hd-section">
+        <div class="hd-title">📡 Приказ тренера</div>
+        <div class="adv-card" style="margin:0">
+          ${detail.advice.map((a,i)=>`<div class="adv-item"><div class="adv-n">${i+1}</div><div>${highlightAdvice(a)}</div></div>`).join('')}
+        </div>
+      </div>`;
+    }
+
+    // ── Phrases ──
+    if(detail.phrases&&detail.phrases.length){
+      body+=`<div class="hd-section">
+        <div class="hd-title">💬 Фразы из тренировки</div>
+        ${detail.phrases.map(p=>`<div class="phrase-item" style="margin-bottom:8px">
+          <div><div class="phrase-cat">${p.cat}</div><div class="phrase-text">"${p.text}"</div></div>
+        </div>`).join('')}
+      </div>`;
+    }
+
+    // ── Dialog ──
     if(detail.dialog&&detail.dialog.length){
-      body+=`<div class="hd-section"><div class="hd-title">💬 Диалог</div>`;
+      body+=`<div class="hd-section">
+        <div class="hd-title">💬 Диалог</div>`;
       detail.dialog.forEach(m=>{
         const isM=m.role==='manager'||m.role==='mgr';
-        body+=`<div class="hd-msg ${isM?'mgr':'cli'}"><div class="hd-msg-who">${isM?(user.name||'Вы'):'Клиент'}</div>${m.content}</div>`;
+        body+=`<div class="hd-msg ${isM?'mgr':'cli'}">
+          <div class="hd-msg-who">${isM?(user.name||'Вы'):'Клиент'}</div>
+          ${m.content}
+        </div>`;
       });
       body+=`</div>`;
     }
-    // Advice
-    if(detail.advice&&detail.advice.length){
-      body+=`<div class="hd-section"><div class="hd-title">📡 Рекомендации тренера</div><div class="hd-advice">${detail.advice.map((a,i)=>`<div style="margin-bottom:8px;padding:8px 10px;background:rgba(79,142,247,.06);border-radius:7px;border-left:2px solid var(--acc)">${i+1}. ${highlightAdvice(a)}</div>`).join('')}</div></div>`;
-    }
+
   } else {
-    body=`<div style="color:var(--t3);font-size:13px;padding:12px 0">Детали этой сессии не сохранились.<br>Детали хранятся для последних 3 тренировок.</div>`;
+    body=`<div style="color:var(--t3);font-size:13px;padding:12px 0">Детали этой тренировки не сохранились — они хранятся для последних 10 сессий.</div>`;
   }
   $('mHistBody').innerHTML=body;
   $('mHist').classList.add('on');
@@ -1535,8 +1588,18 @@ function finishSC(won,fullDialog){
     });
   }
   gs.history.push({product:scCfg.product,type:'sc',diff:DLBL[scDiff],outcome:isWin?'Продажа':'Отказ',score:scRes.total,xp:tot,date:Date.now(),stages:scRes.stages});
-  // Save session detail (keep last 3)
-  const detail={histIdx:gs.history.length-1,stages:scRes.stages,dialog:fullDialog,advice:scRes.top_advice||[]};
+  // Save FULL session detail
+  const detail={
+    histIdx:gs.history.length-1,
+    stages:scRes.stages,
+    dialog:fullDialog,
+    advice:scRes.top_advice||[],
+    verdict:scRes.verdict||'',
+    summary:scRes.summary||'',
+    best_moment:scRes.best_moment||'',
+    worst_moment:scRes.worst_moment||'',
+    phrases:scRes.phrases||[]
+  };
   sessionDetails.push(detail);if(sessionDetails.length>10)sessionDetails.shift();
   sessionDetails.forEach((d,i)=>{d.histIdx=gs.history.length-1-i});
   // Auto-save phrases
@@ -1916,13 +1979,17 @@ const SHEETS_CODE=`function doPost(e){
     const ss=SpreadsheetApp.getActiveSpreadsheet();
     let sh=ss.getSheetByName('Results')||ss.insertSheet('Results');
     if(sh.getLastRow()===0){
-      sh.appendRow(['Дата','Имя','TG','Команда','Модуль','Продукт','Сложность','Балл','Исход','XP']);
-      sh.getRange(1,1,1,10).setBackground('#13151f').setFontColor('#f0b429').setFontWeight('bold');
+      sh.appendRow(['Дата','Имя','TG','Команда','Модуль','Продукт','Сложность','Балл','Исход','XP','Оценки по критериям','Лучший момент','Худший момент','Рекомендации','Диалог']);
+      sh.getRange(1,1,1,15).setBackground('#13151f').setFontColor('#f0b429').setFontWeight('bold');
+      sh.setColumnWidth(11,220);sh.setColumnWidth(12,300);sh.setColumnWidth(13,300);sh.setColumnWidth(14,350);sh.setColumnWidth(15,500);
     }
-    sh.appendRow([new Date(d.date),d.name,d.tg,d.team,d.module,d.product,d.diff,d.total,d.outcome,d.xp]);
+    sh.appendRow([new Date(d.date),d.name,d.tg,d.team,d.module,d.product,d.diff,d.total,d.outcome,d.xp,d.scores||'—',d.best||'—',d.worst||'—',d.advice||'—',d.dialog||'—']);
+    // Wrap text in detail columns
+    const lr=sh.getLastRow();
+    sh.getRange(lr,11,1,5).setWrap(true).setVerticalAlignment('top');
     let sv=ss.getSheetByName('Supervisor')||ss.insertSheet('Supervisor');
     if(sv.getLastRow()===0){
-      sv.appendRow(['Менеджер','TG','Команда','Тренировок','Ср.балл','Продаж','XP','Активность']);
+      sv.appendRow(['Менеджер','TG','Команда','Тренировок','Ср.балл','Продаж','XP','Последняя активность']);
       sv.getRange(1,1,1,8).setBackground('#13151f').setFontColor('#f0b429').setFontWeight('bold');
     }
     const all=sh.getDataRange().getValues().slice(1).filter(r=>r[1]===d.name);
@@ -1958,11 +2025,45 @@ async function doSendSheets(url,m){
   try{
     const r=m==='iq'?iqResult:scRes;
     const lastH=gs.history[gs.history.length-1];
-    const payload={date:Date.now(),name:user.name,tg:user.tg,team:user.team,
+    const lastDetail=sessionDetails[sessionDetails.length-1];
+
+    // Format dialog
+    const dialogText=lastDetail?.dialog?.length
+      ? lastDetail.dialog.map(msg=>{
+          const who=msg.role==='manager'||msg.role==='mgr'?(user.name||'Менеджер'):'Клиент';
+          return `[${who}]: ${msg.content}`;
+        }).join('\n')
+      : '—';
+
+    // Format scores breakdown
+    const scLabel={opening:'Открытие',questions:'Вопросы',pitch:'Презентация',objections:'Возражения',close:'Закрытие'};
+    const stages=m==='sc'?(r?.stages||{}):(r?.scores||{});
+    const scoresText=Object.entries(stages)
+      .map(([k,v])=>`${scLabel[k]||k}: ${v}/10`).join('\n');
+
+    // Format recommendations
+    const adviceArr=m==='sc'?(r?.top_advice||[]):(r?.growth||[]);
+    const adviceText=adviceArr.length ? adviceArr.map((a,i)=>`${i+1}. ${a}`).join('\n') : '—';
+
+    // Best/worst moment
+    const bestMoment=r?.best||'—';
+    const worstMoment=r?.worst||'—';
+
+    const payload={
+      date:Date.now(),
+      name:user.name, tg:user.tg, team:user.team,
       module:m==='iq'?'SalesIQ':'SalesCoach',
       product:m==='iq'?iqRpProduct:scCfg?.product||'—',
       diff:m==='iq'?'—':DLBL[scDiff]||'—',
-      total:r?.total||0,outcome:r?.verdict||lastH?.outcome||'—',xp:lastH?.xp||0};
+      total:r?.total||0,
+      outcome:r?.verdict||lastH?.outcome||'—',
+      xp:lastH?.xp||0,
+      scores:scoresText,
+      dialog:dialogText,
+      advice:adviceText,
+      best:bestMoment,
+      worst:worstMoment
+    };
     await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     return true;
   }catch(e){return false;}
