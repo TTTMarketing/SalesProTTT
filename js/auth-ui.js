@@ -85,35 +85,48 @@
       this.style.display = 'none';
     });
 
-    bind('btnEmailLogin', async function(){
-      clearErr();
-      const email = $('authEmail').value.trim();
-      const pass = $('authPass').value;
-      if(!email || !pass) return showErr('Введите email и пароль');
-      this.disabled = true;
-      try{
-        await window.SP_FIREBASE.loginEmail(email, pass);
-      }catch(e){
-        const msg = e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found'
-          ? 'Неверный email или пароль' : 'Ошибка входа';
-        showErr(msg);
-        this.disabled = false;
+    let emailMode = 'login';
+
+    bind('btnEmailToggle', function(){
+      const submit = $('btnEmailSubmit');
+      if(emailMode === 'login'){
+        emailMode = 'signup';
+        if(submit) submit.textContent = 'Создать аккаунт';
+        this.textContent = 'Уже есть аккаунт? Войти';
+        $('authPass').setAttribute('autocomplete','new-password');
+      } else {
+        emailMode = 'login';
+        if(submit) submit.textContent = 'Войти';
+        this.textContent = 'Нет аккаунта? Создать';
+        $('authPass').setAttribute('autocomplete','current-password');
       }
+      clearErr();
     });
 
-    bind('btnEmailSignup', async function(){
+    bind('btnEmailSubmit', async function(){
       clearErr();
       const email = $('authEmail').value.trim();
       const pass = $('authPass').value;
       if(!email || !pass) return showErr('Введите email и пароль');
-      if(pass.length < 6) return showErr('Пароль минимум 6 символов');
+      if(emailMode === 'signup' && pass.length < 6) return showErr('Пароль минимум 6 символов');
       this.disabled = true;
       try{
-        await window.SP_FIREBASE.signupEmail(email, pass);
+        if(emailMode === 'signup'){
+          await window.SP_FIREBASE.signupEmail(email, pass);
+        } else {
+          await window.SP_FIREBASE.loginEmail(email, pass);
+        }
       }catch(e){
-        const msg = e.code === 'auth/email-already-in-use' ? 'Email уже зарегистрирован'
-          : e.code === 'auth/invalid-email' ? 'Некорректный email'
-          : 'Ошибка регистрации';
+        let msg;
+        if(emailMode === 'signup'){
+          msg = e.code === 'auth/email-already-in-use' ? 'Email уже зарегистрирован'
+            : e.code === 'auth/invalid-email' ? 'Некорректный email'
+            : e.code === 'auth/weak-password' ? 'Слишком простой пароль (минимум 6 символов)'
+            : 'Ошибка регистрации';
+        } else {
+          msg = e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found'
+            ? 'Неверный email или пароль' : 'Ошибка входа';
+        }
         showErr(msg);
         this.disabled = false;
       }
