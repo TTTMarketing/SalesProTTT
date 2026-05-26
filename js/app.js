@@ -1351,23 +1351,37 @@ const SHEETS_CODE=`function doPost(e){
     const ss=SpreadsheetApp.getActiveSpreadsheet();
     let sh=ss.getSheetByName('Results')||ss.insertSheet('Results');
     if(sh.getLastRow()===0){
-      sh.appendRow(['Дата','Имя','TG','Команда','Модуль','Продукт','Сложность','Балл','Исход','XP','Оценки по критериям','Лучший момент','Худший момент','Рекомендации','Диалог']);
-      sh.getRange(1,1,1,15).setBackground('#13151f').setFontColor('#f0b429').setFontWeight('bold');
-      sh.setColumnWidth(11,220);sh.setColumnWidth(12,300);sh.setColumnWidth(13,300);sh.setColumnWidth(14,350);sh.setColumnWidth(15,500);
+      sh.appendRow([
+        'Дата','Тип','Имя','Telegram','Команда','Роль/Клиент','Объект',
+        'Сложность','Сценарий/Итог','Успех','Общий балл',
+        'Контакт','Потребности','Аргументация','Возражения','Закрытие',
+        'Сильная сторона','Главная ошибка','Вывод','Следующий фокус',
+        'XP','Транскрипт'
+      ]);
+      sh.getRange(1,1,1,22).setBackground('#13151f').setFontColor('#f0b429').setFontWeight('bold');
+      [17,18,19,20].forEach(c=>sh.setColumnWidth(c,280));
+      sh.setColumnWidth(22,500);
     }
-    sh.appendRow([new Date(d.date),d.name,d.tg,d.team,d.module,d.product,d.diff,d.total,d.outcome,d.xp,d.scores||'—',d.best||'—',d.worst||'—',d.advice||'—',d.dialog||'—']);
-    // Wrap text in detail columns
+    sh.appendRow([
+      new Date(d.date), d.type, d.name, d.tg, d.team, d.role, d.product,
+      d.difficulty, d.verdict, d.success, d.total,
+      d.s_contact, d.s_needs, d.s_args, d.s_objections, d.s_close,
+      d.strength, d.weakness, d.summary, d.next_focus,
+      d.xp, d.transcript
+    ]);
     const lr=sh.getLastRow();
-    sh.getRange(lr,11,1,5).setWrap(true).setVerticalAlignment('top');
+    sh.getRange(lr,17,1,6).setWrap(true).setVerticalAlignment('top');
+    sh.getRange(lr,12,1,5).setHorizontalAlignment('center');
+
     let sv=ss.getSheetByName('Supervisor')||ss.insertSheet('Supervisor');
     if(sv.getLastRow()===0){
-      sv.appendRow(['Менеджер','TG','Команда','Тренировок','Ср.балл','Продаж','XP','Последняя активность']);
+      sv.appendRow(['Менеджер','TG','Команда','Тренировок','Ср.балл','Успехов','XP','Последняя активность']);
       sv.getRange(1,1,1,8).setBackground('#13151f').setFontColor('#f0b429').setFontWeight('bold');
     }
-    const all=sh.getDataRange().getValues().slice(1).filter(r=>r[1]===d.name);
-    const avg=all.reduce((a,r)=>a+(r[7]||0),0)/(all.length||1);
-    const wins=all.filter(r=>r[8]==='Продажа').length;
-    const txp=all.reduce((a,r)=>a+(r[9]||0),0);
+    const all=sh.getDataRange().getValues().slice(1).filter(r=>r[2]===d.name);
+    const avg=all.reduce((a,r)=>a+(Number(r[10])||0),0)/(all.length||1);
+    const wins=all.filter(r=>r[9]==='Да').length;
+    const txp=all.reduce((a,r)=>a+(Number(r[20])||0),0);
     const svd=sv.getDataRange().getValues();
     let mr=-1;for(let i=1;i<svd.length;i++){if(svd[i][0]===d.name){mr=i+1;break}}
     const row=[d.name,d.tg,d.team,all.length,Math.round(avg*10)/10,wins,txp,new Date(d.date)];
@@ -1399,51 +1413,71 @@ async function doSendSheets(url,m){
     const lastH=gs.history[gs.history.length-1];
     const lastDetail=sessionDetails[sessionDetails.length-1];
 
-    // Format dialog
-    const dialogText=lastDetail?.dialog?.length
+    // Success flag
+    const isWin = m==='iq'
+      ? (r?.verdict==='БРАТЬ')
+      : (r?.verdict==='ПРОДАЖА СОВЕРШЕНА');
+
+    // Stage scores — different keys for IQ vs Coach, but unified column layout
+    const stages = m==='iq' ? (r?.scores||{}) : (r?.stages||{});
+    const sv = (coachKey, iqKey) => Number((m==='iq' ? stages[iqKey] : stages[coachKey])) || 0;
+    const s_contact     = sv('opening',    'motivation');
+    const s_needs       = sv('questions',  'activity');
+    const s_args        = sv('pitch',      'persuasion');
+    const s_objections  = sv('objections', 'objections');
+    const s_close       = sv('close',      'stress');
+
+    // Strength / weakness
+    const strength = m==='iq'
+      ? (r?.strengths?.[0] || '—')
+      : (r?.best_moment || '—');
+    const weakness = m==='iq'
+      ? (r?.growth?.[0] || '—')
+      : (r?.worst_moment || '—');
+
+    // Next focus (numbered list of advice)
+    const adviceArr = m==='iq' ? (r?.growth||[]) : (r?.top_advice||[]);
+    const next_focus = adviceArr.length
+      ? adviceArr.map((a,i)=>`${i+1}. ${a}`).join('\n')
+      : '—';
+
+    // Transcript
+    const dialog = lastDetail?.dialog?.length
       ? lastDetail.dialog.map(msg=>{
-          const who=msg.role==='manager'||msg.role==='mgr'?(user.name||'Менеджер'):'Клиент';
+          const who = (msg.role==='manager'||msg.role==='mgr') ? (user.name||'Менеджер') : 'Клиент';
           return `[${who}]: ${msg.content}`;
         }).join('\n')
       : '—';
 
-    // Format scores breakdown
-    const scLabel={opening:'Открытие',questions:'Вопросы',pitch:'Презентация',objections:'Возражения',close:'Закрытие'};
-    const stages=m==='sc'?(r?.stages||{}):(r?.scores||{});
-    const scoresText=Object.entries(stages)
-      .map(([k,v])=>`${scLabel[k]||k}: ${v}/10`).join('\n');
-
-    // Format recommendations
-    const adviceArr=m==='sc'?(r?.top_advice||[]):(r?.growth||[]);
-    const adviceText=adviceArr.length ? adviceArr.map((a,i)=>`${i+1}. ${a}`).join('\n') : '—';
-
-    // Best/worst moment
-    const bestMoment=r?.best||'—';
-    const worstMoment=r?.worst||'—';
-
-    const payload={
-      date:Date.now(),
-      name:user.name, tg:user.tg, team:user.team,
-      module:m==='iq'?'SalesIQ':'SalesCoach',
-      product:m==='iq'?iqRpProduct:scCfg?.product||'—',
-      diff:m==='iq'?'—':DLBL[scDiff]||'—',
-      total:r?.total||0,
-      outcome:r?.verdict||lastH?.outcome||'—',
-      xp:lastH?.xp||0,
-      scores:scoresText,
-      dialog:dialogText,
-      advice:adviceText,
-      best:bestMoment,
-      worst:worstMoment
+    const payload = {
+      date: Date.now(),
+      type: m==='iq' ? 'IQ' : 'Coach',
+      name: user.name,
+      tg: user.tg,
+      team: user.team,
+      role: m==='iq' ? iqRole : (scCfg?.client || '—'),
+      product: m==='iq' ? iqRpProduct : (scCfg?.product || '—'),
+      difficulty: m==='iq' ? '—' : (DLBL[scDiff] || '—'),
+      verdict: r?.verdict || lastH?.outcome || '—',
+      success: isWin ? 'Да' : 'Нет',
+      total: r?.total || 0,
+      s_contact, s_needs, s_args, s_objections, s_close,
+      strength,
+      weakness,
+      summary: r?.summary || '—',
+      next_focus,
+      xp: lastH?.xp || 0,
+      transcript: dialog
     };
     await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     return true;
   }catch(e){return false;}
 }
-// Auto-send to Sheets only if user configured their own URL via the modal
+// Auto-send to Sheets: prefer user-configured URL, fall back to project default
 async function autoSendSheets(m){
-  const url=localStorage.getItem('sp_sheets_url');
-  if(!url) return;
+  const customUrl=localStorage.getItem('sp_sheets_url');
+  const defaultUrl='https://script.google.com/macros/s/AKfycbxy9OtnkiCDXRek3Bj4CXQT8Qku5eVqCq5eH1hKdrwxp2ZI1YvjTQzuFs94aCkb00C9/exec';
+  const url=customUrl||defaultUrl;
   await doSendSheets(url,m);
 }
 
