@@ -91,6 +91,26 @@ window.SP_FIREBASE = {
       ...profile,
       updatedAt: serverTimestamp()
     }, { merge: true });
+  },
+
+  async getState(uid){
+    const snap = await getDoc(doc(db, 'users', uid));
+    if(!snap.exists()) return null;
+    const d = snap.data();
+    return {
+      gs: d.gs || null,
+      phrases: d.phrases || [],
+      sessionDetails: d.sessionDetails || []
+    };
+  },
+
+  async saveState(uid, state){
+    await setDoc(doc(db, 'users', uid), {
+      gs: state.gs ?? null,
+      phrases: state.phrases ?? [],
+      sessionDetails: state.sessionDetails ?? [],
+      updatedAt: serverTimestamp()
+    }, { merge: true });
   }
 };
 

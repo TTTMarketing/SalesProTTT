@@ -167,16 +167,47 @@ let sessionDetails=[];
 
 const PRODS=['Сертификат на массаж за 25 000₸','Курс английского языка за 80 000₸','Ручка Parker за 15 000₸','Абонемент в фитнес-клуб за 50 000₸/мес','Интернет для бизнеса за 15 000₸/мес','Подписка на Иви за 3 900₸/мес'];
 
-/* ── STORAGE (UID-keyed gamification; profile lives in Firestore) ── */
+/* ── STORAGE (localStorage for instant + Firestore for cross-device sync) ── */
+let _firestoreSaveTimer=null;
 function save(){
   if(!currentUid) return;
+  // Synchronous: localStorage (instant)
   try{
     localStorage.setItem('sp_g_'+currentUid,JSON.stringify(gs));
     localStorage.setItem('sp_p_'+currentUid,JSON.stringify(phrases));
     localStorage.setItem('sp_sd_'+currentUid,JSON.stringify(sessionDetails));
   }catch(e){}
+  // Debounced: Firestore (cross-device sync)
+  if(_firestoreSaveTimer) clearTimeout(_firestoreSaveTimer);
+  _firestoreSaveTimer=setTimeout(()=>{
+    if(!window.SP_FIREBASE || !currentUid) return;
+    window.SP_FIREBASE.saveState(currentUid,{gs,phrases,sessionDetails})
+      .catch(e=>console.error('Firestore state save failed',e));
+  },1500);
 }
-function loadGameStateForUid(uid){
+function emptyState(){
+  return {xp:0,sessions:0,wins:0,streak:0,lastDate:null,hardCount:0,bestScore:0,iqSessions:0,learnModules:0,achievements:[],history:[],doneModules:[],catHistory:{}};
+}
+async function loadGameStateForUid(uid){
+  // Try Firestore first (cross-device)
+  try{
+    const state=await window.SP_FIREBASE.getState(uid);
+    if(state && state.gs){
+      gs=state.gs;
+      phrases=state.phrases||[];
+      sessionDetails=state.sessionDetails||[];
+      // Mirror to localStorage for offline access
+      try{
+        localStorage.setItem('sp_g_'+uid,JSON.stringify(gs));
+        localStorage.setItem('sp_p_'+uid,JSON.stringify(phrases));
+        localStorage.setItem('sp_sd_'+uid,JSON.stringify(sessionDetails));
+      }catch(e){}
+      return;
+    }
+  }catch(e){
+    console.warn('Firestore state load failed, falling back to localStorage',e);
+  }
+  // Fallback: localStorage
   try{
     const g=localStorage.getItem('sp_g_'+uid);
     const p=localStorage.getItem('sp_p_'+uid);
@@ -188,7 +219,8 @@ function loadGameStateForUid(uid){
       return;
     }
   }catch(e){}
-  gs={xp:0,sessions:0,wins:0,streak:0,lastDate:null,hardCount:0,bestScore:0,iqSessions:0,learnModules:0,achievements:[],history:[],doneModules:[],catHistory:{}};
+  // Fresh state
+  gs=emptyState();
   phrases=[];
   sessionDetails=[];
 }
@@ -225,7 +257,7 @@ async function handleAuthChange(firebaseUser){
     const profile=await window.SP_FIREBASE.getProfile(firebaseUser.uid);
     if(profile && profile.name){
       user={name:profile.name,tg:profile.tg||'—',team:profile.team||'—'};
-      loadGameStateForUid(firebaseUser.uid);
+      await loadGameStateForUid(firebaseUser.uid);
       gotoScreen('scr-app');
       renderProfile();renderLearn();renderPhrases();updateNavRank();
       renderAuthInfo(firebaseUser);
@@ -1406,9 +1438,10 @@ async function doSendSheets(url,m){
     return true;
   }catch(e){return false;}
 }
-// Auto-send to Sheets if URL is saved
+// Auto-send to Sheets only if user configured their own URL via the modal
 async function autoSendSheets(m){
-  const url='https://script.google.com/macros/s/AKfycbxy9OtnkiCDXRek3Bj4CXQT8Qku5eVqCq5eH1hKdrwxp2ZI1YvjTQzuFs94aCkb00C9/exec';
+  const url=localStorage.getItem('sp_sheets_url');
+  if(!url) return;
   await doSendSheets(url,m);
 }
 
