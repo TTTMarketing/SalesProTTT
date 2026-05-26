@@ -1,4 +1,4 @@
-const API='https://sales-pro-ttt.vercel.app/api/chat',MDL='claude-sonnet-4-5';
+const API='/api/chat',MDL='claude-sonnet-4-5';
 const $=id=>document.getElementById(id);
 function load(t){$('ltxt').textContent=t||'...';$('loverlay').classList.add('on')}
 function unload(){$('loverlay').classList.remove('on')}
@@ -204,6 +204,16 @@ function gotoScreen(id){
 }
 
 /* ── AUTH STATE → ENTRY ROUTER ── */
+function describeAuthIdentity(fu){
+  const pid=fu.providerData?.[0]?.providerId||'';
+  const icon=pid==='google.com'?'🔵 Google':pid==='phone'?'📱':'✉️';
+  const id=fu.email||fu.phoneNumber||fu.uid.slice(0,8);
+  return icon+' '+id;
+}
+function renderAuthInfo(fu){
+  const el=document.getElementById('authInfo');
+  if(el) el.textContent='Вход выполнен: '+describeAuthIdentity(fu);
+}
 async function handleAuthChange(firebaseUser){
   if(!firebaseUser){
     currentUid=null;user=null;gs=null;
@@ -218,6 +228,7 @@ async function handleAuthChange(firebaseUser){
       loadGameStateForUid(firebaseUser.uid);
       gotoScreen('scr-app');
       renderProfile();renderLearn();renderPhrases();updateNavRank();
+      renderAuthInfo(firebaseUser);
     } else {
       if(firebaseUser.displayName){
         const rn=document.getElementById('rName');
@@ -397,6 +408,7 @@ async function register(){
     return;
   }
   save();boot();
+  if(window.SP_FIREBASE?.auth?.currentUser) renderAuthInfo(window.SP_FIREBASE.auth.currentUser);
 }
 function boot(){
   $('scr-reg').classList.remove('on');
