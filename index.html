@@ -64,28 +64,6 @@
     <div class="reg-sub">Платформа роста менеджеров</div>
     <div class="auth-hint">Войдите, чтобы начать тренироваться</div>
 
-    <!-- Phone — step 1 -->
-    <div id="auth-phone-step">
-      <div class="rf">
-        <label class="rl">Номер телефона</label>
-        <input class="ri" id="authPhone" type="tel" inputmode="tel" placeholder="+7 700 123 45 67" autocomplete="tel">
-      </div>
-      <button type="button" class="gold-btn" id="btnSendCode">📱 Получить код по SMS</button>
-    </div>
-
-    <!-- Phone — step 2 -->
-    <div id="auth-code-step" style="display:none">
-      <div class="auth-phone-display" id="authPhoneShown">—</div>
-      <div class="rf">
-        <label class="rl">Код из SMS</label>
-        <input class="ri" id="authCode" type="tel" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code">
-      </div>
-      <button type="button" class="gold-btn" id="btnVerifyCode">Войти</button>
-      <button type="button" class="auth-secondary" id="btnAuthBack">← Изменить номер</button>
-    </div>
-
-    <div class="auth-divider"><span>или</span></div>
-
     <button type="button" class="auth-google" id="btnGoogle">
       <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285f4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84c-.21 1.12-.84 2.07-1.79 2.71v2.25h2.89c1.7-1.56 2.69-3.86 2.69-6.6z"/><path fill="#34a853" d="M9 18c2.43 0 4.47-.81 5.96-2.18l-2.89-2.25c-.81.54-1.83.85-3.07.85-2.36 0-4.36-1.59-5.07-3.74H.94v2.32C2.42 15.98 5.48 18 9 18z"/><path fill="#fbbc05" d="M3.93 10.68c-.18-.54-.28-1.11-.28-1.68s.1-1.14.28-1.68V4.96H.94C.34 6.16 0 7.55 0 9s.34 2.84.94 4.04l2.99-2.36z"/><path fill="#ea4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.34l2.58-2.58C13.46.89 11.43 0 9 0 5.48 0 2.42 2.02.94 4.96l2.99 2.36C4.64 5.17 6.64 3.58 9 3.58z"/></svg>
       <span>Войти через Google</span>
@@ -313,8 +291,6 @@
     </div>
   </div>
 </div>
-
-<div id="recaptcha-container"></div>
 
 <script type="module" src="js/firebase.js"></script>
 <script src="js/auth-ui.js"></script>

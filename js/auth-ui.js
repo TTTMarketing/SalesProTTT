@@ -11,16 +11,18 @@
     return '+'+p;
   }
 
+  function bind(id, handler){
+    const el = $(id);
+    if(el) el.onclick = handler;
+  }
+
   function setupAuthUI(){
     if(!window.SP_FIREBASE){
       window.addEventListener('sp-firebase-ready', setupAuthUI, {once:true});
       return;
     }
 
-    const btnSendCode = $('btnSendCode');
-    if(!btnSendCode) return;
-
-    btnSendCode.onclick = async function(){
+    bind('btnSendCode', async function(){
       clearErr();
       const raw = $('authPhone').value.trim();
       if(!raw) return showErr('Введите номер телефона');
@@ -40,9 +42,9 @@
       }
       this.disabled = false;
       this.textContent = orig;
-    };
+    });
 
-    $('btnVerifyCode').onclick = async function(){
+    bind('btnVerifyCode', async function(){
       clearErr();
       const code = $('authCode').value.trim();
       if(!/^\d{6}$/.test(code)) return showErr('Введите 6-значный код');
@@ -56,16 +58,16 @@
         this.disabled = false;
         this.textContent = orig;
       }
-    };
+    });
 
-    $('btnAuthBack').onclick = function(){
+    bind('btnAuthBack', function(){
       $('auth-code-step').style.display = 'none';
       $('auth-phone-step').style.display = 'block';
       $('authCode').value = '';
       clearErr();
-    };
+    });
 
-    $('btnGoogle').onclick = async function(){
+    bind('btnGoogle', async function(){
       clearErr();
       this.disabled = true;
       try{
@@ -76,14 +78,14 @@
         }
         this.disabled = false;
       }
-    };
+    });
 
-    $('btnShowEmail').onclick = function(){
+    bind('btnShowEmail', function(){
       $('auth-email-step').style.display = 'block';
       this.style.display = 'none';
-    };
+    });
 
-    $('btnEmailLogin').onclick = async function(){
+    bind('btnEmailLogin', async function(){
       clearErr();
       const email = $('authEmail').value.trim();
       const pass = $('authPass').value;
@@ -97,9 +99,9 @@
         showErr(msg);
         this.disabled = false;
       }
-    };
+    });
 
-    $('btnEmailSignup').onclick = async function(){
+    bind('btnEmailSignup', async function(){
       clearErr();
       const email = $('authEmail').value.trim();
       const pass = $('authPass').value;
@@ -115,7 +117,7 @@
         showErr(msg);
         this.disabled = false;
       }
-    };
+    });
   }
 
   if(document.readyState === 'loading'){
