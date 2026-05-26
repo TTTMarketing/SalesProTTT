@@ -250,6 +250,7 @@ async function handleAuthChange(firebaseUser){
   if(!firebaseUser){
     currentUid=null;user=null;gs=null;
     gotoScreen('scr-login');
+    unload();
     return;
   }
   currentUid=firebaseUser.uid;
@@ -272,6 +273,7 @@ async function handleAuthChange(firebaseUser){
     console.error('Profile load failed',e);
     gotoScreen('scr-reg');
   }
+  unload();
 }
 
 async function logout(){
